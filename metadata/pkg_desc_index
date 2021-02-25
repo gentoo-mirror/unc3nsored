@@ -1,1 +1,2 @@
 sys-apps/sd 0.7.6: Intuitive find & replace CLI (sed alternative)
+sys-devel/peda 1.1_p20200102: PEDA - Python Exploit Development Assistance for GDB
