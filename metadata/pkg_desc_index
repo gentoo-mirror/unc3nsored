@@ -1,4 +1,5 @@
 app-admin/misc-utils 0.1 0.1-r1 0.1.1: Collection of miscellaneous little utils that I don't feel deserve a full repo.
+app-crypt/openpgp-keys-xxc3nsoredxx 20210628: OpenPGP key used by xxc3nsoredxx to sign their releases
 app-misc/ropgadget 6.5: Search for gadgets in your binaries to facilitate your ROP exploitation.
 sys-apps/sd 0.7.6: Intuitive find & replace CLI (sed alternative)
 sys-devel/peda 1.1_p20200102: PEDA - Python Exploit Development Assistance for GDB
