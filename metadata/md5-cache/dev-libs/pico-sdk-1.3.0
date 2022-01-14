@@ -1,0 +1,11 @@
+DEFINED_PHASES=install postinst prepare
+DEPEND=>=dev-util/cmake-3.13.0
+DESCRIPTION=Raspberry Pi Pico C/C++ SDK
+EAPI=8
+HOMEPAGE=https://github.com/raspberrypi/pico-sdk
+KEYWORDS=~amd64 ~x86
+LICENSE=BSD
+RDEPEND=>=dev-util/cmake-3.13.0
+SLOT=0
+SRC_URI=https://github.com/raspberrypi/pico-sdk/archive/refs/tags/1.3.0.tar.gz -> pico-sdk-1.3.0.tar.gz
+_md5_=176bd192396e246fd6c77d61fdfca8f1
