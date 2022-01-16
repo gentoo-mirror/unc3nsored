@@ -6,6 +6,6 @@ HOMEPAGE=https://github.com/raspberrypi/pico-sdk
 KEYWORDS=~amd64 ~x86
 LICENSE=BSD
 RDEPEND=>=dev-util/cmake-3.13.0
-SLOT=0
+SLOT=1.3.0
 SRC_URI=https://github.com/raspberrypi/pico-sdk/archive/refs/tags/1.3.0.tar.gz -> pico-sdk-1.3.0.tar.gz
-_md5_=176bd192396e246fd6c77d61fdfca8f1
+_md5_=4f90edc6cc240ff77f63280d9e12d375
