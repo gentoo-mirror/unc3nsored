@@ -3,3 +3,4 @@
 # * generated automatically using pmaint *
 
 app-admin/misc-utils:snapshots - Install the BTRFS snapshot script
+dev-libs/pico-sdk:usb - Provide USB support using TinyUSB
