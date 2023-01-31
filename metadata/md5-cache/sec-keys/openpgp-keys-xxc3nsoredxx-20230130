@@ -5,5 +5,5 @@ HOMEPAGE=https://github.com/xxc3nsoredxx
 KEYWORDS=~amd64 ~x86
 LICENSE=public-domain
 SLOT=0
-SRC_URI=https://raw.githubusercontent.com/xxc3nsoredxx/xxc3nsoredxx/master/pubkey.asc -> openpgp-keys-xxc3nsoredxx-20210628.asc
-_md5_=481148302ccf77a581f1da778361551d
+SRC_URI=https://raw.githubusercontent.com/xxc3nsoredxx/xxc3nsoredxx/master/pubkey.asc -> openpgp-keys-xxc3nsoredxx-20230130.asc
+_md5_=5cf8db1525875e996be961c41071a9ed
