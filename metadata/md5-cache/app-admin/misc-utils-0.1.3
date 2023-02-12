@@ -1,4 +1,4 @@
-BDEPEND=snapshots? ( sys-fs/btrfs-progs virtual/udev sys-fs/cryptsetup ) verify-sig? ( app-crypt/openpgp-keys-xxc3nsoredxx ) virtual/pkgconfig verify-sig? ( app-crypt/gnupg >=app-portage/gemato-16 )
+BDEPEND=snapshots? ( sys-fs/btrfs-progs virtual/udev sys-fs/cryptsetup ) verify-sig? ( app-crypt/openpgp-keys-xxc3nsoredxx ) virtual/pkgconfig verify-sig? ( app-crypt/gnupg >=app-portage/gemato-18.0 )
 DEFINED_PHASES=configure install postinst prepare unpack
 DEPEND=snapshots? ( sys-fs/btrfs-progs virtual/udev sys-fs/cryptsetup )
 DESCRIPTION=Collection of miscellaneous little utils that I don't feel deserve a full repo.
@@ -12,5 +12,5 @@ RDEPEND=snapshots? ( sys-fs/btrfs-progs virtual/udev sys-fs/cryptsetup )
 REQUIRED_USE=|| ( snapshots )
 SLOT=0
 SRC_URI=https://github.com/xxc3nsoredxx/misc-utils/releases/download/0.1.3/misc-utils-0.1.3.tar.gz verify-sig? ( https://github.com/xxc3nsoredxx/misc-utils/releases/download/0.1.3/misc-utils-0.1.3.tar.gz.asc )
-_eclasses_=portability	58227860123d3e8da23290064ce3373e	savedconfig	4011d8d7370446e970e2c92b20a31341	toolchain-funcs	9a610728b9bcca1919234cceb35a1027	multilib	5ca4e49abed8e3a2f7b56920eadee157	udev	eec0bbab06977f1cfc5597269c1fa152	verify-sig	afb98fe4696292e4234ce36713fd4e9e
+_eclasses_=portability	58227860123d3e8da23290064ce3373e	savedconfig	4011d8d7370446e970e2c92b20a31341	toolchain-funcs	9a610728b9bcca1919234cceb35a1027	multilib	5ca4e49abed8e3a2f7b56920eadee157	udev	eec0bbab06977f1cfc5597269c1fa152	verify-sig	b4c85caec7a10c3bd60a51de932bbfab
 _md5_=3389459d5783ad50051a1cd0b10b6efb
