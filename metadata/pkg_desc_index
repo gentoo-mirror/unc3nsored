@@ -1,5 +1,4 @@
 app-admin/misc-utils 0.1.3 0.1.3-r1: Collection of miscellaneous little utils that I don't feel deserve a full repo.
-app-misc/ropgadget 6.5: Search for gadgets in your binaries to facilitate your ROP exploitation.
 dev-libs/pico-sdk 1.3.0-r3: Raspberry Pi Pico C/C++ SDK
 dev-libs/tinyusb 0.12.0: An open source cross-platform USB stack for embedded system
 dev-vcs/p4v 2022.1.2268368 2022.3.2370885: Helix Visual Client (P4V) For Helix Core
