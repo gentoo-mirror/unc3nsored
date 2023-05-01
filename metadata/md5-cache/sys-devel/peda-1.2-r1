@@ -3,12 +3,12 @@ DESCRIPTION=PEDA - Python Exploit Development Assistance for GDB
 EAPI=8
 HOMEPAGE=https://github.com/longld/peda https://github.com/xxc3nsoredxx/peda
 INHERIT=python-single-r1
-IUSE=+python_single_target_python3_10
+IUSE=python_single_target_python3_10 python_single_target_python3_11
 KEYWORDS=~amd64
 LICENSE=CC-BY-NC-SA-3.0
-RDEPEND=python_single_target_python3_10? ( >=dev-lang/python-3.10.9-r1:3.10 ) python_single_target_python3_10? ( >=dev-python/six-1.9.0[python_targets_python3_10(-)] ) sys-devel/gdb[python_single_target_python3_10(-)?]
-REQUIRED_USE=^^ ( python_single_target_python3_10 )
+RDEPEND=python_single_target_python3_10? ( >=dev-lang/python-3.10.9-r1:3.10 ) python_single_target_python3_11? ( >=dev-lang/python-3.11.1-r1:3.11 ) python_single_target_python3_10? ( >=dev-python/six-1.9.0[python_targets_python3_10(-)] ) python_single_target_python3_11? ( >=dev-python/six-1.9.0[python_targets_python3_11(-)] ) sys-devel/gdb[python_single_target_python3_10(-)?,python_single_target_python3_11(-)?]
+REQUIRED_USE=^^ ( python_single_target_python3_10 python_single_target_python3_11 )
 SLOT=0
 SRC_URI=https://github.com/xxc3nsoredxx/peda/archive/v1.2-gentoo.tar.gz -> peda-1.2.tar.gz
 _eclasses_=multiprocessing	b4e253ab22cef7b1085e9b67c7a3b730	toolchain-funcs	14a8ae365191b518fad51caad7a08f3e	multilib	d1408425c7c4a7669b9b17735404b693	python-utils-r1	4544ab96b58e177dc52d75e42f5ee307	python-single-r1	75118e916668a74c660a13b0ecb22562
-_md5_=9c26921d62eef9f612904fbc42ecc9a6
+_md5_=984984467f05cc50dd9555675ecbdfc9
