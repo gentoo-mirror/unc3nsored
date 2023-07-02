@@ -4,3 +4,9 @@
 
 app-admin/misc-utils:snapshots - Install the BTRFS snapshot script
 dev-libs/pico-sdk:usb - Provide USB support using TinyUSB
+net-misc/openssh:ldns - Use LDNS for DNSSEC/SSHFP validation.
+net-misc/openssh:livecd - Enable root password logins for live-cd environment.
+net-misc/openssh:security-key - Include builtin U2F/FIDO support
+net-misc/openssh:single-config - Use a single config file instead of fragments in *.d
+net-misc/openssh:ssl - Enable additional crypto algorithms via OpenSSL
+net-misc/openssh:xmss - Enable XMSS post-quantum authentication algorithm
