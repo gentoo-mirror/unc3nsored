@@ -1,12 +1,12 @@
 DEFINED_PHASES=install postinst prepare
-DEPEND=usb? ( ~dev-libs/tinyusb-0.12.0 ) >=dev-util/cmake-3.13.0
+DEPEND=usb? ( ~dev-libs/tinyusb-0.12.0 ) >=dev-build/cmake-3.13.0
 DESCRIPTION=Raspberry Pi Pico C/C++ SDK
 EAPI=8
 HOMEPAGE=https://github.com/raspberrypi/pico-sdk
 IUSE=+usb
 KEYWORDS=~amd64 ~x86
 LICENSE=BSD
-RDEPEND=usb? ( ~dev-libs/tinyusb-0.12.0 ) >=dev-util/cmake-3.13.0
+RDEPEND=usb? ( ~dev-libs/tinyusb-0.12.0 ) >=dev-build/cmake-3.13.0
 SLOT=1.3.0
 SRC_URI=https://github.com/raspberrypi/pico-sdk/archive/refs/tags/1.3.0.tar.gz -> pico-sdk-1.3.0.tar.gz
-_md5_=fbf451b11b2dc5a603b42129dbc567ff
+_md5_=085cdcfd166f21a0384fcb2f106395d8
