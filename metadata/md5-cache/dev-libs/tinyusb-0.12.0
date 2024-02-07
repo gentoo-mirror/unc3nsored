@@ -1,11 +1,11 @@
 DEFINED_PHASES=install prepare
-DEPEND=>=dev-util/cmake-3.13.0
+DEPEND=>=dev-build/cmake-3.13.0
 DESCRIPTION=An open source cross-platform USB stack for embedded system
 EAPI=8
 HOMEPAGE=https://github.com/hathach/tinyusb
 KEYWORDS=~amd64 ~x86
 LICENSE=MIT
-RDEPEND=>=dev-util/cmake-3.13.0
+RDEPEND=>=dev-build/cmake-3.13.0
 SLOT=0
 SRC_URI=https://github.com/hathach/tinyusb/archive/refs/tags/0.12.0.tar.gz -> tinyusb-0.12.0.tar.gz
-_md5_=2d9cf038e27b56e319aaa759a8655a2f
+_md5_=651bf0f600978519f1f8dd11148c6dbd
