@@ -5,6 +5,5 @@ dev-libs/tinyusb 0.12.0: An open source cross-platform USB stack for embedded sy
 dev-vcs/p4v 2022.1.2268368 2022.3.2370885: Helix Visual Client (P4V) For Helix Core
 net-misc/openssh 9.3_p1-r1 9.3_p2 9.4_p1-r1 9.6_p1 9.6_p1-r1: Port of OpenBSD's free SSH release
 sec-keys/openpgp-keys-xxc3nsoredxx 20230130: OpenPGP key used by xxc3nsoredxx to sign their releases
-sys-apps/sd 0.7.6: Intuitive find & replace CLI (sed alternative)
 sys-devel/peda 1.2-r1: PEDA - Python Exploit Development Assistance for GDB
 sys-fs/android-simg2img 1.1.4: Tool to convert Android sparse images to raw images
