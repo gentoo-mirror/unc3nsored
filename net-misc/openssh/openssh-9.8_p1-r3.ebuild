@@ -22,7 +22,7 @@ LICENSE="BSD GPL-2"
 SLOT="0"
 KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~arm64-macos ~ppc-macos ~x64-macos ~x64-solaris"
 # Probably want to drop ssl defaulting to on in a future version.
-IUSE="abi_mips_n32 audit debug kerberos ldns libedit livecd pam +pie security-key selinux single-config +ssl static test xmss"
+IUSE="abi_mips_n32 audit debug kerberos ldns legacy-ciphers libedit livecd pam +pie security-key selinux single-config +ssl static test xmss"
 
 RESTRICT="!test? ( test )"
 
@@ -78,9 +78,9 @@ BDEPEND="
 PATCHES=(
 	"${FILESDIR}/${PN}-9.4_p1-Allow-MAP_NORESERVE-in-sandbox-seccomp-filter-maps.patch"
 	"${FILESDIR}/${PN}-9.6_p1-fix-xmss-c99.patch"
-	"${FILESDIR}/${PN}-9.6_p1-CVE-2024-6387.patch"
-	"${FILESDIR}/${PN}-9.6_p1-chaff-logic.patch"
 	"${FILESDIR}/${PN}-9.7_p1-config-tweaks-unc3nsored.patch"
+	"${FILESDIR}/${PN}-9.8_p1-musl-connect.patch"
+	"${FILESDIR}/${PN}-9.8_p1-inetd.patch"
 )
 
 pkg_pretend() {
@@ -199,6 +199,7 @@ src_configure() {
 		$(use_with audit audit linux)
 		$(use_with kerberos kerberos5 "${EPREFIX}"/usr)
 		$(use_with ldns)
+		$(use_enable legacy-ciphers dsa-keys)
 		$(use_with libedit)
 		$(use_with pam)
 		$(use_with pie)
@@ -349,7 +350,7 @@ src_install() {
 	rmdir "${ED}"/var/empty || die
 
 	systemd_dounit "${FILESDIR}"/sshd.socket
-	systemd_newunit "${FILESDIR}"/sshd.service.1 sshd.service
+	systemd_newunit "${FILESDIR}"/sshd.service.2 sshd.service
 	systemd_newunit "${FILESDIR}"/sshd_at.service.1 'sshd@.service'
 
 	# Install dropins with explicit mode, bug 906638, 915840
@@ -427,5 +428,41 @@ pkg_postinst() {
 		elog "Be aware that by disabling openssl support in openssh, the server and clients"
 		elog "no longer support dss/rsa/ecdsa keys.  You will need to generate ed25519 keys"
 		elog "and update all clients/servers that utilize them."
+	fi
+
+	openssh_maybe_restart
+}
+
+openssh_maybe_restart() {
+	local ver
+	declare -a versions
+	read -ra versions <<<"${REPLACING_VERSIONS}"
+	for ver in "${versions[@]}"; do
+		# Exclude 9.8_p1 because it didn't have the safety check
+		[[ ${ver} == 9.8_p1 ]] && break
+
+		if [[ ${ver%_*} == "${PV%_*}" ]]; then
+			# No major version change has occurred
+			return
+		fi
+	done
+
+	if [[ ${ROOT} ]]; then
+		return
+	elif [[ -d /run/systemd/system ]] && sshd -t >/dev/null 2>&1; then
+		ewarn "The ebuild will now attempt to restart OpenSSH to avoid"
+		ewarn "bricking the running instance. See bug #709748."
+		ebegin "Attempting to restart openssh via 'systemctl try-restart sshd'"
+		systemctl try-restart sshd
+		eend $?
+	elif [[ -d /run/openrc ]]; then
+		# We don't check for sshd -t here because the OpenRC init script
+		# has a stop_pre() which does checkconfig, i.e. we defer to it
+		# to give nicer output for a failed sanity check.
+		ewarn "The ebuild will now attempt to restart OpenSSH to avoid"
+		ewarn "bricking the running instance. See bug #709748."
+		ebegin "Attempting to restart openssh via 'rc-service -q --ifstarted --nodeps sshd restart'"
+		rc-service -q --ifstarted --nodeps sshd restart
+		eend $?
 	fi
 }
