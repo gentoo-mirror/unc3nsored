@@ -1,0 +1,11 @@
+DEFINED_PHASES=install postinst
+DESCRIPTION=Helix Visual Client (P4V) For Helix Core
+EAPI=8
+HOMEPAGE=https://www.perforce.com/products/helix-core-apps/helix-visual-client-p4v
+KEYWORDS=~amd64
+LICENSE=p4v-20241024
+RDEPEND=dev-qt/qtdeclarative x11-libs/libxcb x11-libs/xcb-util-cursor
+RESTRICT=bindist mirror
+SLOT=0
+SRC_URI=https://filehost.perforce.com/perforce/r25.2/bin.linux26x86_64/p4v.tgz -> p4v-2025.2.2796382.tar.gz https://filehost.perforce.com/perforce/r25.2/doc/user/p4vnotes.txt -> p4vnotes-2025.2.2796382.txt
+_md5_=33ad03e46def973d7540cf06823aa209
