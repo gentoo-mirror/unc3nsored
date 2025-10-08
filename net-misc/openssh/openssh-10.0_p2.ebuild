@@ -1,14 +1,17 @@
-# Copyright 1999-2023 Gentoo Authors
+# Copyright 1999-2025 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
 
+# Remember to check the upstream release/stable branches for patches
+# to backport! See https://marc.info/?l=openssh-unix-dev&m=172723798122122&w=2.
+
 VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/openssh.org.asc
-inherit user-info flag-o-matic autotools pam systemd toolchain-funcs verify-sig
+inherit user-info flag-o-matic autotools optfeature pam systemd toolchain-funcs verify-sig eapi9-ver
 
 # Make it more portable between straight releases
 # and _p? releases.
-PARCH=${P/_}
+PARCH=${PN}-10.0p1
 
 DESCRIPTION="Port of OpenBSD's free SSH release"
 HOMEPAGE="https://www.openssh.com/"
@@ -16,19 +19,21 @@ SRC_URI="
 	mirror://openbsd/OpenSSH/portable/${PARCH}.tar.gz
 	verify-sig? ( mirror://openbsd/OpenSSH/portable/${PARCH}.tar.gz.asc )
 "
-S="${WORKDIR}/${PARCH}"
+if [[ ${PV} != 10.0_p2 ]] ; then
+	die "Please restore the old S/PATCHES. 10.0_p2 had a workaround that should be dropped."
+fi
+S="${WORKDIR}/${PN}-10.0p1"
 
 LICENSE="BSD GPL-2"
 SLOT="0"
 KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~loong ~m68k ~mips ~ppc ~ppc64 ~riscv ~s390 ~sparc ~x86 ~amd64-linux ~x86-linux ~arm64-macos ~ppc-macos ~x64-macos ~x64-solaris"
 # Probably want to drop ssl defaulting to on in a future version.
-IUSE="abi_mips_n32 audit debug kerberos ldns libedit livecd pam +pie security-key selinux single-config +ssl static test X xmss"
+IUSE="abi_mips_n32 audit debug kerberos ldns libedit livecd pam security-key selinux single-config +ssl static test xmss"
 
 RESTRICT="!test? ( test )"
 
 REQUIRED_USE="
 	ldns? ( ssl )
-	pie? ( !static )
 	static? ( !kerberos !pam )
 	xmss? ( ssl  )
 	test? ( ssl )
@@ -68,25 +73,20 @@ RDEPEND="
 	!net-misc/openssh-contrib
 	pam? ( >=sys-auth/pambase-20081028 )
 	!prefix? ( sys-apps/shadow )
-	X? ( x11-apps/xauth )
 "
-# Weird dep construct for newer gcc-config for bug #872416
 BDEPEND="
 	dev-build/autoconf
 	virtual/pkgconfig
-	|| (
-		>=sys-devel/gcc-config-2.6
-		>=llvm-core/clang-toolchain-symlinks-14-r1:14
-		>=llvm-core/clang-toolchain-symlinks-15-r1:15
-		>=llvm-core/clang-toolchain-symlinks-16-r1:*
-	)
 	verify-sig? ( sec-keys/openpgp-keys-openssh )
 "
 
 PATCHES=(
-	"${FILESDIR}/${PN}-9.3_p1-disable-conch-interop-tests.patch"
-	"${FILESDIR}/${PN}-9.3_p1-fix-putty-tests.patch"
-	"${FILESDIR}/${PN}-9.3_p1-deny-shmget-shmat-shmdt-in-preauth-privsep-child.patch"
+	"${FILESDIR}/${PN}-9.4_p1-Allow-MAP_NORESERVE-in-sandbox-seccomp-filter-maps.patch"
+	"${FILESDIR}/${PN}-9.6_p1-fix-xmss-c99.patch"
+	"${FILESDIR}/${PN}-9.7_p1-config-tweaks-unc3nsored.patch"
+	# Backports from upstream release branch
+	"${FILESDIR}/${PV}"
+	# Our own backports
 )
 
 pkg_pretend() {
@@ -128,10 +128,6 @@ pkg_pretend() {
 }
 
 src_prepare() {
-	sed -i \
-		-e "/_PATH_XAUTH/s:/usr/X11R6/bin/xauth:${EPREFIX}/usr/bin/xauth:" \
-		pathnames.h || die
-
 	# don't break .ssh/authorized_keys2 for fun
 	sed -i '/^AuthorizedKeysFile/s:^:#:' sshd_config || die
 
@@ -185,6 +181,8 @@ src_configure() {
 		--datadir="${EPREFIX}"/usr/share/openssh
 		--with-privsep-path="${EPREFIX}"/var/empty
 		--with-privsep-user=sshd
+		# optional at runtime; guarantee a known path
+		--with-xauth="${EPREFIX}"/usr/bin/xauth
 
 		# --with-hardening adds the following in addition to flags we
 		# already set in our toolchain:
@@ -195,21 +193,25 @@ src_configure() {
 		#    Clang (bug #872548), ICEs on m68k (bug #920350, gcc PR113086,
 		#    gcc PR104820, gcc PR104817, gcc PR110934)).
 		#
-		# Furthermore, OSSH_CHECK_CFLAG_COMPILE does not use AC_CACHE_CHECK,
-		# so we cannot just disable -fzero-call-used-regs=used.
+		# Furthermore, OSSH_CHECK_CFLAG_COMPILE does not use AC_CACHE_CHECK
+		# util 10.1_p1, so we cannot just disable -fzero-call-used-regs=used.
 		#
 		# Therefore, just pass --without-hardening, given it doesn't negate
 		# our already hardened toolchain defaults, and avoids adding flags
 		# which are known-broken in both Clang and GCC and haven't been
 		# proven reliable.
 		--without-hardening
+		--without-pie
+		--without-stackprotect
+
+		# wtmpdb not yet packaged
+		--without-wtmpdb
 
 		$(use_with audit audit linux)
 		$(use_with kerberos kerberos5 "${EPREFIX}"/usr)
 		$(use_with ldns)
 		$(use_with libedit)
 		$(use_with pam)
-		$(use_with pie)
 		$(use_with selinux)
 		$(use_with security-key security-key-builtin)
 		$(use_with ssl openssl)
@@ -221,31 +223,10 @@ src_configure() {
 		myconf+=( --disable-utmp --disable-wtmp )
 	fi
 
-	# Workaround for Clang 15 miscompilation with -fzero-call-used-regs=all
-	# bug #869839 (https://github.com/llvm/llvm-project/issues/57692)
-	tc-is-clang && myconf+=( --without-hardening )
-
 	econf "${myconf[@]}"
 }
 
-src_test() {
-	local tests=( compat-tests )
-	local shell=$(egetshell "${UID}")
-	if [[ ${shell} == */nologin ]] || [[ ${shell} == */false ]] ; then
-		ewarn "Running the full OpenSSH testsuite requires a usable shell for the 'portage'"
-		ewarn "user, so we will run a subset only."
-		tests+=( interop-tests )
-	else
-		tests+=( tests )
-	fi
-
-	local -x SUDO= SSH_SK_PROVIDER= TEST_SSH_UNSAFE_PERMISSIONS=1
-	mkdir -p "${HOME}"/.ssh || die
-	emake -j1 "${tests[@]}" </dev/null
-}
-
-# Gentoo tweaks to default config files.
-tweak_ssh_configs() {
+create_config_dropins() {
 	local locale_vars=(
 		# These are language variables that POSIX defines.
 		# http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_02
@@ -257,17 +238,9 @@ tweak_ssh_configs() {
 	)
 	local fragment
 
-	dodir /etc/ssh/ssh_config.d /etc/ssh/sshd_config.d
-	if ! use single-config; then
-		cat <<-EOF >> "${ED}"/etc/ssh/ssh_config || die
-		Include "${EPREFIX}/etc/ssh/ssh_config.d/*.conf"
-		EOF
-		cat <<-EOF >> "${ED}"/etc/ssh/sshd_config || die
-		Include "${EPREFIX}/etc/ssh/sshd_config.d/*.conf"
-		EOF
-	fi
+	mkdir -p "${WORKDIR}"/etc/ssh/ssh{,d}_config.d || die
 
-	cat <<-EOF >> "${ED}"/etc/ssh/ssh_config.d/9999999gentoo.conf || die
+	cat <<-EOF > "${WORKDIR}"/etc/ssh/ssh_config.d/9999999gentoo.conf || die
 	# Send locale environment variables (bug #367017)
 	SendEnv ${locale_vars[*]}
 
@@ -275,16 +248,16 @@ tweak_ssh_configs() {
 	SendEnv COLORTERM
 	EOF
 
-	cat <<-EOF >> "${ED}"/etc/ssh/ssh_config.d/9999999gentoo-security.conf || die
+	cat <<-EOF > "${WORKDIR}"/etc/ssh/ssh_config.d/9999999gentoo-security.conf || die
 	RevokedHostKeys "${EPREFIX}/etc/ssh/ssh_revoked_hosts"
 	EOF
 
-	cat <<-EOF >> "${ED}"/etc/ssh/ssh_revoked_hosts || die
+	cat <<-EOF > "${WORKDIR}"/etc/ssh/ssh_revoked_hosts || die
 	# https://github.blog/2023-03-23-we-updated-our-rsa-ssh-host-key/
 	ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==
 	EOF
 
-	cat <<-EOF >> "${ED}"/etc/ssh/sshd_config.d/9999999gentoo.conf || die
+	cat <<-EOF > "${WORKDIR}"/etc/ssh/sshd_config.d/9999999gentoo.conf || die
 	# Allow client to pass locale environment variables (bug #367017)
 	AcceptEnv ${locale_vars[*]}
 
@@ -292,8 +265,13 @@ tweak_ssh_configs() {
 	AcceptEnv COLORTERM
 	EOF
 
+	cat <<-EOF > "${WORKDIR}"/etc/ssh/sshd_config.d/9999999gentoo-subsystem.conf || die
+	# override default of no subsystems
+	Subsystem	sftp	${EPREFIX}/usr/$(get_libdir)/misc/sftp-server
+	EOF
+
 	if use pam ; then
-		cat <<-EOF >> "${ED}"/etc/ssh/sshd_config.d/9999999gentoo-pam.conf || die
+		cat <<-EOF > "${WORKDIR}"/etc/ssh/sshd_config.d/9999999gentoo-pam.conf || die
 		UsePAM yes
 		# This interferes with PAM.
 		PasswordAuthentication no
@@ -304,7 +282,7 @@ tweak_ssh_configs() {
 	fi
 
 	if use livecd ; then
-		cat <<-EOF >> "${ED}"/etc/ssh/sshd_config.d/9999999gentoo-livecd.conf || die
+		cat <<-EOF > "${WORKDIR}"/etc/ssh/sshd_config.d/9999999gentoo-livecd.conf || die
 		# Allow root login with password on livecds.
 		PermitRootLogin Yes
 		EOF
@@ -313,20 +291,51 @@ tweak_ssh_configs() {
 	# Copy the fragments into the main configs, then delete the now useless
 	# stuff
 	if use single-config; then
-		for fragment in "${ED}"/etc/ssh/ssh_config.d/*; do
-			printf '\n# %s\n' "$(basename "$fragment")" >> "${ED}"/etc/ssh/ssh_config || die
-			cat "$fragment" >> "${ED}"/etc/ssh/ssh_config || die
+		for fragment in "${WORKDIR}"/etc/ssh/ssh_config.d/*; do
+			printf '\n# %s\n' "$(basename "$fragment")" >> "${S}"/ssh_config || die
+			cat "$fragment" >> "${S}"/ssh_config || die
 			rm "$fragment" || die
 		done
-		rmdir "${ED}"/etc/ssh/ssh_config.d || die
+		rmdir "${WORKDIR}"/etc/ssh/ssh_config.d || die
 
-		for fragment in "${ED}"/etc/ssh/sshd_config.d/*; do
-			printf '\n# %s\n' "$(basename "$fragment")" >> "${ED}"/etc/ssh/sshd_config || die
-			cat "$fragment" >> "${ED}"/etc/ssh/sshd_config || die
+		for fragment in "${WORKDIR}"/etc/ssh/sshd_config.d/*; do
+			printf '\n# %s\n' "$(basename "$fragment")" >> "${S}"/sshd_config || die
+			cat "$fragment" >> "${S}"/sshd_config || die
 			rm "$fragment" || die
 		done
-		rmdir "${ED}"/etc/ssh/sshd_config.d || die
+		rmdir "${WORKDIR}"/etc/ssh/sshd_config.d || die
+	# Make the main configs source the dropins
+	else
+		cat <<-EOF >> "${S}"/ssh_config || die
+		# Make sure that all Host and Match options are below this Include!
+		Include "${EPREFIX}/etc/ssh/ssh_config.d/*.conf"
+		EOF
+		cat <<-EOF >> "${S}"/sshd_config || die
+		# Make sure that all Match options are below this Include!
+		Include "${EPREFIX}/etc/ssh/sshd_config.d/*.conf"
+		EOF
 	fi
+}
+
+src_compile() {
+	default
+	create_config_dropins
+}
+
+src_test() {
+	local tests=( compat-tests )
+	local shell=$(egetshell "${UID}")
+	if [[ ${shell} == */nologin ]] || [[ ${shell} == */false ]] ; then
+		ewarn "Running the full OpenSSH testsuite requires a usable shell for the 'portage'"
+		ewarn "user, so we will run a subset only."
+		tests+=( interop-tests file-tests unit )
+	else
+		tests+=( tests )
+	fi
+
+	local -x SUDO= SSH_SK_PROVIDER= TEST_SSH_UNSAFE_PERMISSIONS=1
+	mkdir -p "${HOME}"/.ssh || die
+	emake -j1 "${tests[@]}" </dev/null
 }
 
 src_install() {
@@ -335,23 +344,33 @@ src_install() {
 	dobin contrib/ssh-copy-id
 	newinitd "${FILESDIR}"/sshd-r1.initd sshd
 	newconfd "${FILESDIR}"/sshd-r1.confd sshd
+	exeinto /etc/user/init.d
+	newexe "${FILESDIR}"/ssh-agent.initd ssh-agent
 
 	if use pam; then
 		newpamd "${FILESDIR}"/sshd.pam_include.2 sshd
 	fi
 
-	tweak_ssh_configs
-
 	doman contrib/ssh-copy-id.1
 	dodoc ChangeLog CREDITS OVERVIEW README* TODO sshd_config
 
-	diropts -m 0700
-	dodir /etc/skel/.ssh
 	rmdir "${ED}"/var/empty || die
 
 	systemd_dounit "${FILESDIR}"/sshd.socket
-	systemd_newunit "${FILESDIR}"/sshd.service.1 sshd.service
+	systemd_newunit "${FILESDIR}"/sshd.service.2 sshd.service
 	systemd_newunit "${FILESDIR}"/sshd_at.service.1 'sshd@.service'
+
+	# Install dropins with explicit mode, bug 906638, 915840
+	diropts -m0755
+	insopts -m0644
+	insinto /etc/ssh
+	doins "${WORKDIR}"/etc/ssh/ssh_revoked_hosts
+	if ! use single-config; then
+		doins -r "${WORKDIR}"/etc/ssh/ssh_config.d
+		diropts -m0700
+		insopts -m0600
+		doins -r "${WORKDIR}"/etc/ssh/sshd_config.d
+	fi
 }
 
 pkg_preinst() {
@@ -361,57 +380,93 @@ pkg_preinst() {
 }
 
 pkg_postinst() {
-	local old_ver
-	for old_ver in ${REPLACING_VERSIONS}; do
-		if ver_test "${old_ver}" -lt "5.8_p1"; then
-			elog "Starting with openssh-5.8p1, the server will default to a newer key"
-			elog "algorithm (ECDSA).  You are encouraged to manually update your stored"
-			elog "keys list as servers update theirs.  See ssh-keyscan(1) for more info."
-		fi
-		if ver_test "${old_ver}" -lt "7.0_p1"; then
-			elog "Starting with openssh-6.7, support for USE=tcpd has been dropped by upstream."
-			elog "Make sure to update any configs that you might have.  Note that xinetd might"
-			elog "be an alternative for you as it supports USE=tcpd."
-		fi
-		if ver_test "${old_ver}" -lt "7.1_p1"; then #557388 #555518
-			elog "Starting with openssh-7.0, support for ssh-dss keys were disabled due to their"
-			elog "weak sizes.  If you rely on these key types, you can re-enable the key types by"
-			elog "adding to your sshd_config or ~/.ssh/config files:"
-			elog "	PubkeyAcceptedKeyTypes=+ssh-dss"
-			elog "You should however generate new keys using rsa or ed25519."
+	# bug #139235
+	optfeature "x11 forwarding" x11-apps/xauth
 
-			elog "Starting with openssh-7.0, the default for PermitRootLogin changed from 'yes'"
-			elog "to 'prohibit-password'.  That means password auth for root users no longer works"
-			elog "out of the box.  If you need this, please update your sshd_config explicitly."
-		fi
-		if ver_test "${old_ver}" -lt "7.6_p1"; then
-			elog "Starting with openssh-7.6p1, openssh upstream has removed ssh1 support entirely."
-			elog "Furthermore, rsa keys with less than 1024 bits will be refused."
-		fi
-		if ver_test "${old_ver}" -lt "7.7_p1"; then
-			elog "Starting with openssh-7.7p1, we no longer patch openssh to provide LDAP functionality."
-			elog "Install sys-auth/ssh-ldap-pubkey and use OpenSSH's \"AuthorizedKeysCommand\" option"
-			elog "if you need to authenticate against LDAP."
-			elog "See https://wiki.gentoo.org/wiki/SSH/LDAP_migration for more details."
-		fi
-		if ver_test "${old_ver}" -lt "8.2_p1"; then
-			ewarn "After upgrading to openssh-8.2p1 please restart sshd, otherwise you"
-			ewarn "will not be able to establish new sessions. Restarting sshd over a ssh"
-			ewarn "connection is generally safe."
-		fi
-		if ver_test "${old_ver}" -lt "9.2_p1-r1" && systemd_is_booted; then
-			ewarn "From openssh-9.2_p1-r1 the supplied systemd unit file defaults to"
-			ewarn "'Restart=on-failure', which causes the service to automatically restart if it"
-			ewarn "terminates with an unclean exit code or signal. This feature is useful for most users,"
-			ewarn "but it can increase the vulnerability of the system in the event of a future exploit."
-			ewarn "If you have a web-facing setup or are concerned about security, it is recommended to"
-			ewarn "set 'Restart=no' in your sshd unit file."
-		fi
-	done
+	if ver_replacing -lt "5.8_p1"; then
+		elog "Starting with openssh-5.8p1, the server will default to a newer key"
+		elog "algorithm (ECDSA).  You are encouraged to manually update your stored"
+		elog "keys list as servers update theirs.  See ssh-keyscan(1) for more info."
+	fi
+	if ver_replacing -lt "7.0_p1"; then
+		elog "Starting with openssh-6.7, support for USE=tcpd has been dropped by upstream."
+		elog "Make sure to update any configs that you might have.  Note that xinetd might"
+		elog "be an alternative for you as it supports USE=tcpd."
+	fi
+	if ver_replacing -lt "7.1_p1"; then #557388 #555518
+		elog "Starting with openssh-7.0, support for ssh-dss keys were disabled due to their"
+		elog "weak sizes.  If you rely on these key types, you can re-enable the key types by"
+		elog "adding to your sshd_config or ~/.ssh/config files:"
+		elog "	PubkeyAcceptedKeyTypes=+ssh-dss"
+		elog "You should however generate new keys using rsa or ed25519."
+
+		elog "Starting with openssh-7.0, the default for PermitRootLogin changed from 'yes'"
+		elog "to 'prohibit-password'.  That means password auth for root users no longer works"
+		elog "out of the box.  If you need this, please update your sshd_config explicitly."
+	fi
+	if ver_replacing -lt "7.6_p1"; then
+		elog "Starting with openssh-7.6p1, openssh upstream has removed ssh1 support entirely."
+		elog "Furthermore, rsa keys with less than 1024 bits will be refused."
+	fi
+	if ver_replacing -lt "7.7_p1"; then
+		elog "Starting with openssh-7.7p1, we no longer patch openssh to provide LDAP functionality."
+		elog "Install sys-auth/ssh-ldap-pubkey and use OpenSSH's \"AuthorizedKeysCommand\" option"
+		elog "if you need to authenticate against LDAP."
+		elog "See https://wiki.gentoo.org/wiki/SSH/LDAP_migration for more details."
+	fi
+	if ver_replacing -lt "8.2_p1"; then
+		ewarn "After upgrading to openssh-8.2p1 please restart sshd, otherwise you"
+		ewarn "will not be able to establish new sessions. Restarting sshd over a ssh"
+		ewarn "connection is generally safe."
+	fi
+	if ver_replacing -lt "9.2_p1-r1" && systemd_is_booted; then
+		ewarn "From openssh-9.2_p1-r1 the supplied systemd unit file defaults to"
+		ewarn "'Restart=on-failure', which causes the service to automatically restart if it"
+		ewarn "terminates with an unclean exit code or signal. This feature is useful for most users,"
+		ewarn "but it can increase the vulnerability of the system in the event of a future exploit."
+		ewarn "If you have a web-facing setup or are concerned about security, it is recommended to"
+		ewarn "set 'Restart=no' in your sshd unit file."
+	fi
 
 	if [[ -n ${show_ssl_warning} ]]; then
 		elog "Be aware that by disabling openssl support in openssh, the server and clients"
 		elog "no longer support dss/rsa/ecdsa keys.  You will need to generate ed25519 keys"
 		elog "and update all clients/servers that utilize them."
+	fi
+
+	openssh_maybe_restart
+}
+
+openssh_maybe_restart() {
+	local ver
+	declare -a versions
+	read -ra versions <<<"${REPLACING_VERSIONS}"
+	for ver in "${versions[@]}"; do
+		# Exclude 9.8_p1 because it didn't have the safety check
+		[[ ${ver} == 9.8_p1 ]] && break
+
+		if [[ ${ver%_*} == "${PV%_*}" ]]; then
+			# No major version change has occurred
+			return
+		fi
+	done
+
+	if [[ ${ROOT} ]]; then
+		return
+	elif [[ -d /run/systemd/system ]] && sshd -t >/dev/null 2>&1; then
+		ewarn "The ebuild will now attempt to restart OpenSSH to avoid"
+		ewarn "bricking the running instance. See bug #709748."
+		ebegin "Attempting to restart openssh via 'systemctl try-restart sshd'"
+		systemctl try-restart sshd
+		eend $?
+	elif [[ -d /run/openrc ]]; then
+		# We don't check for sshd -t here because the OpenRC init script
+		# has a stop_pre() which does checkconfig, i.e. we defer to it
+		# to give nicer output for a failed sanity check.
+		ewarn "The ebuild will now attempt to restart OpenSSH to avoid"
+		ewarn "bricking the running instance. See bug #709748."
+		ebegin "Attempting to restart openssh via 'rc-service -q --ifstarted --nodeps sshd restart'"
+		rc-service -q --ifstarted --nodeps sshd restart
+		eend $?
 	fi
 }
